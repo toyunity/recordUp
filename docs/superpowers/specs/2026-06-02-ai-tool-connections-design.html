@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>recordup · AI 도구 연결 관리 — 설계 + 단계별 실행 계획</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Pretendard:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #FAFAFA; --surface: #FFFFFF; --fg: #111111; --muted: #6B6B6B;
+    --border: #E5E5E5; --accent: #2F6FEB;
+    --accent-soft: rgba(47, 111, 235, 0.10);
+    --accent-faint: rgba(47, 111, 235, 0.04);
+    --danger: #DC2626; --warn: #EAB308; --success: #17A34A;
+    --code-bg: #131820; --code-fg: #e8e8e0; --code-muted: #95a3b8;
+    --container: 1080px; --gutter: 32px;
+    --leading-body: 1.65; --tracking-display: -0.02em;
+    --fs-h1: clamp(32px, 4.2vw, 48px);
+    --fs-h2: clamp(23px, 2.5vw, 30px);
+    --fs-h3: 18px; --fs-body: 15.5px;
+    --radius: 8px; color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: "Pretendard", "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: var(--fs-body); line-height: var(--leading-body);
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  .container { max-width: var(--container); margin: 0 auto; padding: 0 var(--gutter); }
+  .topnav { position: sticky; top: 0; z-index: 10; background: rgba(250,250,250,0.88); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  .topnav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { display: flex; align-items: center; gap: 10px; color: var(--fg); }
+  .logo-mark { font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 11px; background: var(--fg); color: var(--bg); padding: 4px 6px; border-radius: 4px; letter-spacing: 0.04em; }
+  .logo-name { font-weight: 600; letter-spacing: -0.01em; }
+  .topnav-links { display: flex; gap: 20px; font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--muted); }
+  .topnav-meta { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); }
+  .hero { padding: 72px 0 48px; border-bottom: 1px solid var(--border); }
+  .hero h1 { font-size: var(--fs-h1); font-weight: 600; line-height: 1.1; letter-spacing: var(--tracking-display); margin: 0 0 16px; }
+  .hero .lead { font-size: 16.5px; color: #2a2a2a; line-height: 1.55; max-width: 780px; margin: 0 0 20px; }
+  .hero-meta-row { display: flex; gap: 24px; flex-wrap: wrap; font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--muted); margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--border); }
+  .hero-meta-row dt { color: var(--accent); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
+  .hero-meta-row dd { margin: 4px 0 0; color: var(--fg); font-size: 12.5px; }
+  .hero-meta-row > div { min-width: 170px; }
+  .eyebrow { font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 600; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 12px; }
+  .section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+  .section:last-of-type { border-bottom: none; }
+  .section h2 { font-size: var(--fs-h2); font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 28px; }
+  .section h3 { font-size: var(--fs-h3); font-weight: 600; margin: 30px 0 12px; letter-spacing: -0.005em; }
+  .section p { margin: 0 0 16px; }
+  .section ul, .section ol { padding-left: 22px; margin: 0 0 16px; }
+  .section li { margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; font-size: 13.5px; border: 1px solid var(--border); }
+  thead { background: var(--accent-faint); }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-family: "JetBrains Mono", monospace; font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  td code { font-size: 12px; }
+  code { font-family: "JetBrains Mono", monospace; font-size: 13px; background: var(--accent-soft); color: var(--fg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 16px 18px; border-radius: var(--radius); overflow-x: auto; font-family: "JetBrains Mono", monospace; font-size: 12.5px; line-height: 1.55; margin: 0 0 20px; border: 1px solid #2a3340; }
+  pre code { background: transparent; color: inherit; padding: 0; font-size: 12.5px; }
+  .badge { display: inline-block; font-family: "JetBrains Mono", monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; margin-right: 6px; vertical-align: middle; }
+  .badge-accent { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(47,111,235,0.18); }
+  .badge-keep { background: rgba(23,163,74,0.1); color: var(--success); border: 1px solid rgba(23,163,74,0.2); }
+  .badge-warn { background: rgba(234,179,8,0.12); color: #a8770a; border: 1px solid rgba(234,179,8,0.25); }
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-faint); padding: 16px 20px; margin: 20px 0; border-radius: 0 var(--radius) var(--radius) 0; }
+  .callout-tag { font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.warn { border-left-color: var(--warn); background: rgba(234,179,8,0.06); }
+  .callout.warn .callout-tag { color: #a8770a; }
+  .phase { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 22px 26px; margin: 16px 0 28px; }
+  .phase-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .phase-head h3 { margin: 0; font-size: 17px; }
+  .phase-num { font-family: "JetBrains Mono", monospace; color: var(--accent); font-weight: 600; }
+  .phase-meta { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); }
+  .files { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--muted); margin: 0 0 14px; }
+  .files b { color: var(--fg); font-weight: 600; }
+  .check { list-style: none; padding-left: 0; margin: 8px 0 14px; }
+  .check li { position: relative; padding-left: 26px; margin-bottom: 8px; font-size: 14px; }
+  .check li::before { content: "\2610"; position: absolute; left: 0; top: -1px; font-family: "JetBrains Mono", monospace; color: var(--muted); font-size: 13px; }
+  .check li strong { color: var(--fg); font-weight: 600; }
+  .gate { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--success); background: rgba(23,163,74,0.07); border: 1px solid rgba(23,163,74,0.18); border-radius: 6px; padding: 8px 12px; margin-top: 6px; }
+  .gate b { color: #128a3e; }
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin: 4px 0 0; font-size: 13.5px; }
+  .toc h4 { margin: 0 0 8px; font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .toc ol { padding-left: 18px; margin: 8px 0 0; }
+  .toc li { margin-bottom: 4px; }
+  .pagefoot { border-top: 1px solid var(--border); padding: 32px 0; background: var(--surface); }
+  .pagefoot-base { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: var(--muted); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .mock { white-space: pre; }
+  @media (max-width: 760px) { .hero-meta-row > div { min-width: 0; } .section { padding: 44px 0; } }
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <div class="container topnav-inner">
+    <div class="logo">
+      <span class="logo-mark">ru</span>
+      <span class="logo-name">recordup · AI 도구 연결</span>
+    </div>
+    <nav class="topnav-links">
+      <a href="#summary">요약</a>
+      <a href="#requirements">요구사항</a>
+      <a href="#architecture">아키텍처</a>
+      <a href="#schema">스펙</a>
+      <a href="#ui">설정 UI</a>
+      <a href="#plan">실행 계획</a>
+    </nav>
+    <div class="topnav-meta">DESIGN · 2026.06.02</div>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="container">
+    <p class="eyebrow">DESIGN + 단계별 실행 계획</p>
+    <h1>로컬 AI 도구 <span style="color: var(--accent);">연결 관리</span>.</h1>
+    <p class="lead">설정에서 claude · codex · gemini 등 로컬 AI CLI의 연결 정보(경로 · 버전 · 로그인 상태)를 관리하고, 회의록 생성에 쓸 <b>기본 엔진</b>을 고른다. 현재 <code>claude -p</code>에 하드코딩된 생성 백엔드를 선언적 도구 레지스트리로 일반화한다.</p>
+    <dl class="hero-meta-row">
+      <div><dt>SCOPE</dt><dd>연결 진단 + 생성 엔진 전환</dd></div>
+      <div><dt>도구</dt><dd>claude · codex · gemini (내장 프리셋)</dd></div>
+      <div><dt>엔진 선택</dt><dd>설정의 전역 기본값 1개</dd></div>
+      <div><dt>브랜치</dt><dd>feat/ai-tool-connections</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="section" id="summary">
+  <div class="container">
+    <p class="eyebrow">EXECUTIVE SUMMARY</p>
+    <h2>한눈에 보는 요약</h2>
+
+    <div class="toc">
+      <h4>목차</h4>
+      <ol>
+        <li><a href="#requirements">확정 요구사항</a></li>
+        <li><a href="#architecture">아키텍처 · 컴포넌트</a></li>
+        <li><a href="#schema">도구 스펙 스키마 (ai-tools.json)</a></li>
+        <li><a href="#status">상태 모델</a></li>
+        <li><a href="#ui">설정 UI — 연결 패널</a></li>
+        <li><a href="#integration">생성 연동 · 마이그레이션</a></li>
+        <li><a href="#plan">단계별 실행 계획 (5 Phase)</a></li>
+        <li><a href="#test">에러 처리 · 검증</a></li>
+        <li><a href="#nonscope">비범위 (YAGNI)</a></li>
+      </ol>
+    </div>
+
+    <h3>핵심 5결정</h3>
+    <ol>
+      <li><strong>선언적 레지스트리.</strong> 각 도구를 번들 <code>ai-tools.json</code>의 데이터(스펙)로 정의 → 도구 추가가 대부분 데이터 변경. 기존 <code>prompts/</code>·<code>release-notes.json</code> 패턴과 동일.</li>
+      <li><strong>Locator/Runner 일반화.</strong> <code>ClaudeBinaryLocator</code>·<code>ClaudeRunner</code>를 도구 id로 파라미터화한 <code>AIToolLocator</code>·<code>AIToolRunner</code>로 대체.</li>
+      <li><strong>전역 기본 엔진.</strong> 설정에서 기본 엔진 1개(<code>defaultEngineID</code>) 선택 → 모든 회의록 생성에 적용. per-run 오버라이드 없음.</li>
+      <li><strong>연결 상태 = 탐지 + 버전 + 로그인.</strong> 인증은 자격증명 파일 존재 휴리스틱(없으면 "확인 불가"). round-trip 생성은 하지 않음.</li>
+      <li><strong>무중단 마이그레이션.</strong> 구 <code>claudeBinaryPath</code> → <code>aiToolPath.claude</code> 이전, 기본값 <code>claude</code> → 기존 사용자 동작 불변.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="section" id="requirements">
+  <div class="container">
+    <p class="eyebrow">REQUIREMENTS</p>
+    <h2>확정 요구사항</h2>
+    <table>
+      <thead><tr><th>항목</th><th>결정</th></tr></thead>
+      <tbody>
+        <tr><td>범위</td><td>연결 설정·진단 <b>+ 생성 엔진 전환</b></td></tr>
+        <tr><td>지원 도구</td><td>claude · codex · gemini 등 <b>내장 프리셋</b>, 확장 가능한 레지스트리</td></tr>
+        <tr><td>엔진 선택</td><td><b>설정의 전역 기본값 1개</b> (회의록마다 오버라이드 없음)</td></tr>
+        <tr><td>연결 상태</td><td>바이너리 탐지 + 버전 + <b>로그인/인증 상태</b></td></tr>
+        <tr><td>아키텍처</td><td><b>선언적 도구 레지스트리</b> (번들 JSON + 일반화 Locator/Runner)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section" id="architecture">
+  <div class="container">
+    <p class="eyebrow">ARCHITECTURE</p>
+    <h2>아키텍처 · 컴포넌트</h2>
+    <p>새 디렉터리 <code>Sources/recordup/AITools/</code>:</p>
+    <table>
+      <thead><tr><th>파일</th><th>책임</th></tr></thead>
+      <tbody>
+        <tr><td><code>AITool.swift</code></td><td>도구 스펙 <code>struct</code>(Codable): id · name · icon · candidatePaths · versionArgs · invocation · auth. <code>invocationArguments(prompt:)</code> 순수 함수</td></tr>
+        <tr><td><code>AIToolRegistry.swift</code></td><td>번들 <code>ai-tools.json</code> 로드 → <code>[AITool]</code>, <code>tool(id:)</code>, <code>defaultTool()</code> (<code>defaultEngineID</code> 기반)</td></tr>
+        <tr><td><code>AIToolLocator.swift</code></td><td>도구별 경로 탐지/캐시(<code>aiToolPath.&lt;id&gt;</code>), <code>version(of:)</code>, <code>authState(of:)</code></td></tr>
+        <tr><td><code>AIToolRunner.swift</code></td><td>스펙 기반 회의록 생성. stdin/argTail로 프롬프트 전달 → stdout 수신</td></tr>
+        <tr><td><code>ConnectionsModel.swift</code></td><td><code>@MainActor ObservableObject</code> — 도구별 <code>AIToolStatus</code>를 비동기 프로브로 채워 게시</td></tr>
+      </tbody>
+    </table>
+    <p><b>제거:</b> <code>Claude/ClaudeBinaryLocator.swift</code>, <code>Claude/ClaudeRunner.swift</code> (일반화·대체). <code>PromptTemplateStore.swift</code>는 <code>Claude/</code>에 유지(템플릿은 도구 무관). <b>호출부 교체:</b> <code>TranscribeJob</code> 1곳.</p>
+  </div>
+</section>
+
+<section class="section" id="schema">
+  <div class="container">
+    <p class="eyebrow">SCHEMA</p>
+    <h2>도구 스펙 스키마 — <code>Resources/ai-tools.json</code></h2>
+<pre><code>[
+  { "id": "claude", "name": "Claude Code", "icon": "sparkles",
+    "candidatePaths": ["/opt/homebrew/bin/claude", "/usr/local/bin/claude",
+                       "~/.local/bin/claude", "~/.npm-global/bin/claude",
+                       "/Applications/cmux.app/Contents/Resources/bin/claude"],
+    "versionArgs": ["--version"],
+    "invocation": { "args": ["-p","--output-format","text","--input-format","text"],
+                    "promptVia": "stdin" },
+    "auth": { "type": "credentialFile",
+              "paths": ["~/.claude/.credentials.json", "~/.claude.json"] } },
+
+  { "id": "codex", "name": "Codex", "icon": "chevron.left.forwardslash.chevron.right",
+    "candidatePaths": ["/opt/homebrew/bin/codex", "/usr/local/bin/codex", "~/.local/bin/codex"],
+    "versionArgs": ["--version"],
+    "invocation": { "args": ["exec"], "promptVia": "argTail" },
+    "auth": { "type": "credentialFile", "paths": ["~/.codex/auth.json"] } },
+
+  { "id": "gemini", "name": "Gemini", "icon": "diamond",
+    "candidatePaths": ["/opt/homebrew/bin/gemini", "/usr/local/bin/gemini", "~/.local/bin/gemini"],
+    "versionArgs": ["--version"],
+    "invocation": { "args": ["-p"], "promptVia": "argTail" },
+    "auth": { "type": "credentialFile", "paths": ["~/.gemini/oauth_creds.json"] } }
+]</code></pre>
+    <ul>
+      <li><code>promptVia</code>: <code>stdin</code>(claude, 기존 동작) | <code>argTail</code>(프롬프트를 마지막 인자로 추가 — codex <code>exec "&lt;prompt&gt;"</code>, gemini <code>-p "&lt;prompt&gt;"</code>). 두 모드로 세 도구 모두 커버.</li>
+      <li><code>auth.type</code>: <code>credentialFile</code>(경로 중 하나 존재 → 로그인 추정) | <code>command</code>(실행 후 <code>successPattern</code> 매칭) | 없음 → "확인 불가".</li>
+      <li>탐지 = <code>candidatePaths</code> + <code>/bin/zsh -lc 'command -v &lt;id&gt;'</code> login-shell 폴백 (기존 <code>discoverViaLoginShell</code> 일반화).</li>
+    </ul>
+    <div class="callout warn">
+      <div class="callout-tag">⚠ 구현 단계 검증 (데이터라 한 줄 교정)</div>
+      <p>codex 비대화형 호출(<code>codex exec "…"</code> 가정) · gemini 비대화형 호출(<code>gemini -p "…"</code> 가정) · codex/gemini 자격증명 파일 경로는 <b>실제 설치본 기준으로 확인</b>한다. stdin 방식이 맞으면 <code>promptVia: "stdin"</code>으로 변경.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="status">
+  <div class="container">
+    <p class="eyebrow">STATE</p>
+    <h2>상태 모델</h2>
+<pre><code>struct AIToolStatus {
+    let toolID: String
+    var detected: Bool
+    var path: String?
+    var version: String?     // "v1.0.0"
+    var auth: AuthState
+}
+enum AuthState { case loggedIn, loggedOut, unknown, checking }</code></pre>
+    <p>프로브는 백그라운드 <code>Task</code>(<code>Process</code> 호출)에서 수행하고 결과는 <code>@MainActor</code>에서 갱신. UI는 절대 throw를 받지 않으며, 실패는 <code>detected=false</code> / <code>auth=.unknown</code>으로 흡수한다.</p>
+  </div>
+</section>
+
+<section class="section" id="ui">
+  <div class="container">
+    <p class="eyebrow">SETTINGS UI</p>
+    <h2>설정 UI — 새 <code>connections</code> 카테고리</h2>
+    <p><code>SettingsCategory</code>에 <code>connections</code>("AI 도구", 아이콘 <code>cpu</code>) 추가. 기존 카드/뱃지(<code>statusBadge</code>, <code>GhostButtonStyle</code>, <code>p.surface</code>/<code>p.line</code>) 재사용.</p>
+<pre class="mock"><code>AI 도구 연결
+회의록 생성에 사용할 로컬 AI CLI를 관리합니다.
+
+기본 생성 엔진:   ( • Claude )  ( ○ Codex )  ( ○ Gemini )
+┌────────────────────────────────────────────────┐
+│ ✨ Claude Code     v1.0.0    ● 연결됨  ● 로그인     │
+│ /opt/homebrew/bin/claude                          │
+│ [자동 탐지] [경로 지정…] [테스트]          [✓ 기본] │
+└────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────┐
+│ ◆ Codex            —         ○ 미설치              │
+│ 경로를 찾을 수 없습니다                             │
+│ [자동 탐지] [경로 지정…] [테스트]        [기본 설정] │
+└────────────────────────────────────────────────┘</code></pre>
+    <ul>
+      <li><b>경로 지정…</b> = <code>NSOpenPanel</code>(실행파일 선택, <code>isExecutableFile</code> 검증 후 저장)</li>
+      <li><b>자동 탐지</b> = 해당 도구 재탐지(캐시 무시) · <b>테스트</b> = 탐지+버전+인증 재프로브(생성 호출 없음)</li>
+      <li><b>기본 엔진</b>은 <b>연결된 도구만</b> 선택 가능. 미탐지 도구 라디오는 비활성</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="integration">
+  <div class="container">
+    <p class="eyebrow">INTEGRATION</p>
+    <h2>생성 연동 · 마이그레이션</h2>
+    <ul>
+      <li><code>TranscribeJob</code> Phase 2 → <code>AIToolRunner.generateMinutes(tool: registry.defaultTool(), …)</code></li>
+      <li>기본 엔진 미탐지 시 조기 실패: <span style="color:var(--danger)">"기본 엔진 〈name〉을(를) 찾을 수 없습니다. 설정 › AI 도구에서 경로를 지정하세요."</span></li>
+      <li>마이그레이션: 첫 실행 시 구 <code>claudeBinaryPath</code>가 있고 <code>aiToolPath.claude</code>가 없으면 값 이전. <code>defaultEngineID</code> 기본값 <code>"claude"</code></li>
+      <li>에러 타입: <code>ClaudeRunnerError</code> → <code>AIToolRunnerError</code> (<code>binaryNotFound(toolName)</code> · <code>nonZeroExit(toolName, code, stderr)</code> · <code>noOutput</code>)</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="plan">
+  <div class="container">
+    <p class="eyebrow">EXECUTION PLAN</p>
+    <h2>단계별 실행 계획 — 5 Phase</h2>
+    <p>각 Phase는 <b>건드리는 파일</b> · <b>체크리스트</b> · <b>완료 게이트</b>로 구성한다. Phase 순서대로 빌드가 항상 통과하도록 의존 역순이 아닌 "아래에서 위로"(데이터→모델→런너→UI) 진행.</p>
+
+    <div class="phase">
+      <div class="phase-head"><h3><span class="phase-num">Phase 1</span> · 도구 레지스트리 데이터·모델</h3><span class="phase-meta">의존 없음</span></div>
+      <p class="files"><b>신규:</b> AITool.swift · AIToolRegistry.swift · Resources/ai-tools.json &nbsp;|&nbsp; <b>수정:</b> project.yml(리소스 번들 확인)</p>
+      <ul class="check">
+        <li><strong>AITool.swift</strong> — Codable struct + <code>InvocationSpec{args, promptVia}</code> + <code>AuthSpec{type, paths/command, successPattern}</code> + <code>invocationArguments(prompt:)</code> 순수 함수</li>
+        <li><strong>ai-tools.json</strong> — claude/codex/gemini 3종 (위 스키마)</li>
+        <li><strong>AIToolRegistry</strong> — 번들에서 디코드, <code>tool(id:)</code>, <code>defaultTool()</code>(UserDefaults <code>defaultEngineID</code>, 기본 "claude")</li>
+        <li><strong>project.yml</strong> — <code>Resources/</code> 글롭에 <code>ai-tools.json</code> 동봉되는지 확인</li>
+      </ul>
+      <div class="gate"><b>GATE:</b> ./Scripts/build.sh 통과 + 레지스트리가 3개 도구를 디코드(임시 로그로 확인 후 제거)</div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head"><h3><span class="phase-num">Phase 2</span> · 탐지 · 상태 (Locator)</h3><span class="phase-meta">Phase 1 의존</span></div>
+      <p class="files"><b>신규:</b> AIToolLocator.swift</p>
+      <ul class="check">
+        <li><strong>경로 탐지</strong> — <code>candidatePaths</code>(<code>~</code> 확장) + login-shell 폴백, 결과 <code>aiToolPath.&lt;id&gt;</code> 캐시</li>
+        <li><strong>version(of:)</strong> — <code>versionArgs</code> 실행 후 첫 토큰 파싱("v…")</li>
+        <li><strong>authState(of:)</strong> — <code>credentialFile</code> 경로 존재 검사 → loggedIn/loggedOut, 스펙 없으면 unknown</li>
+        <li><strong>마이그레이션</strong> — 구 <code>claudeBinaryPath</code> → <code>aiToolPath.claude</code> 1회 이전</li>
+      </ul>
+      <div class="gate"><b>GATE:</b> 빌드 통과 + claude 경로·버전이 기존과 동일하게 탐지됨(수동)</div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head"><h3><span class="phase-num">Phase 3</span> · 생성 Runner 일반화 + 호출부 교체</h3><span class="phase-meta">Phase 1·2 의존</span></div>
+      <p class="files"><b>신규:</b> AIToolRunner.swift &nbsp;|&nbsp; <b>수정:</b> TranscribeJob.swift &nbsp;|&nbsp; <b>제거:</b> ClaudeRunner.swift · ClaudeBinaryLocator.swift</p>
+      <ul class="check">
+        <li><strong>AIToolRunner.generateMinutes</strong> — <code>tool</code> 받아 <code>promptVia</code>로 stdin/argTail 분기, 타임아웃·stderr 캡처·<code>AIToolRunnerError</code></li>
+        <li><strong>TranscribeJob</strong> — <code>ClaudeRunner</code> → <code>AIToolRunner(registry.defaultTool())</code>, 미탐지 시 조기 실패 메시지</li>
+        <li><strong>구 파일 제거</strong> — ClaudeRunner.swift · ClaudeBinaryLocator.swift 삭제, 잔여 참조 정리</li>
+      </ul>
+      <div class="gate"><b>GATE:</b> 빌드 통과 + claude 기본값으로 실제 회의록 생성 회귀 테스트(수동)</div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head"><h3><span class="phase-num">Phase 4</span> · 설정 UI — 연결 패널</h3><span class="phase-meta">Phase 2·3 의존</span></div>
+      <p class="files"><b>신규:</b> ConnectionsModel.swift &nbsp;|&nbsp; <b>수정:</b> SettingsView.swift</p>
+      <ul class="check">
+        <li><strong>SettingsCategory.connections</strong> 추가(라벨·아이콘) + 패널 라우팅</li>
+        <li><strong>ConnectionsModel</strong> — 비동기 프로브로 도구별 <code>AIToolStatus</code> 게시, "테스트"/"자동 탐지" 액션</li>
+        <li><strong>connectionsPanel</strong> — 기본 엔진 라디오 + 도구별 상태 카드(연결됨/미설치 · 로그인/확인불가 · 경로 · 버전)</li>
+        <li><strong>경로 지정…</strong> — <code>NSOpenPanel</code> 실행파일 선택·검증·저장</li>
+      </ul>
+      <div class="gate"><b>GATE:</b> 빌드 통과 + 세 카드 표시·경로 오버라이드 영속·기본 엔진 전환 영속(수동)</div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head"><h3><span class="phase-num">Phase 5</span> · 문서 · 마감</h3><span class="phase-meta">전 Phase 의존</span></div>
+      <p class="files"><b>신규:</b> docs/modules/ai-tools.md &nbsp;|&nbsp; <b>수정:</b> .claude/sync-docs-config.json · CLAUDE.md(선택)</p>
+      <ul class="check">
+        <li><strong>ai-tools.md</strong> — AITools 레이어 모듈 문서</li>
+        <li><strong>sync-docs-config.json</strong> — <code>{"source":"Sources/recordup/AITools/**","docs":["docs/modules/ai-tools.md"]}</code> 추가</li>
+        <li><strong>CLAUDE.md</strong>(선택) — 아키텍처/저장 위치 표에 AITools·<code>defaultEngineID</code>·<code>aiToolPath.&lt;id&gt;</code> 한 줄</li>
+      </ul>
+      <div class="gate"><b>GATE:</b> 최종 ./Scripts/build.sh + §검증의 수동 테스트 플랜 5종 통과</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="test">
+  <div class="container">
+    <p class="eyebrow">VERIFY</p>
+    <h2>에러 처리 · 검증</h2>
+    <h3>에러 처리</h3>
+    <ul>
+      <li>모든 <code>Process</code> 호출: 타임아웃(600s 유지) · stderr 캡처 · 비정상 종료 시 <code>AIToolRunnerError</code></li>
+      <li>연결 프로브: 절대 UI로 throw하지 않고 상태값으로 매핑</li>
+      <li>Browse 패널: 선택 파일이 실행 가능해야 저장</li>
+    </ul>
+    <h3>검증 (XCTest 타깃 없음 → 빌드 + 수동 테스트 플랜)</h3>
+    <ol>
+      <li>claude 회귀: 기본 엔진 claude로 회의록 생성이 기존과 동일</li>
+      <li>codex/gemini: 탐지/미탐지 상태 정확, "경로 지정…" 오버라이드 영속, "테스트" 재프로브</li>
+      <li>기본 엔진 전환 후 실제 생성에 반영</li>
+      <li>잘못된 경로 → 명확한 에러 표면화</li>
+      <li>구 <code>claudeBinaryPath</code> → <code>aiToolPath.claude</code> 마이그레이션</li>
+    </ol>
+    <p><code>AITool.invocationArguments(prompt:)</code>와 JSON 디코드는 순수 함수로 두어 추후 단위 테스트 용이.</p>
+  </div>
+</section>
+
+<section class="section" id="nonscope">
+  <div class="container">
+    <p class="eyebrow">OUT OF SCOPE</p>
+    <h2>비범위 (YAGNI)</h2>
+    <ul>
+      <li><span class="badge badge-warn">제외</span> 회의록 생성 시 도구 per-run 오버라이드 (전역 기본값만)</li>
+      <li><span class="badge badge-warn">제외</span> 사용자 임의 커스텀 CLI 추가 (내장 프리셋만)</li>
+      <li><span class="badge badge-keep">유지</span> 기존 템플릿/프롬프트 시스템은 도구와 독립적으로 그대로</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer class="pagefoot">
+  <div class="container pagefoot-base">
+    <span>recordup · AI 도구 연결 관리</span>
+    <span>DESIGN v1 · 2026.06.02 · feat/ai-tool-connections</span>
+  </div>
+</footer>
+
+</body>
+</html>

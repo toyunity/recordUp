@@ -1,0 +1,43 @@
+[
+  {
+    "id": "claude",
+    "name": "Claude Code",
+    "icon": "sparkles",
+    "candidatePaths": [
+      "/opt/homebrew/bin/claude",
+      "/usr/local/bin/claude",
+      "~/.local/bin/claude",
+      "~/.npm-global/bin/claude",
+      "/Applications/cmux.app/Contents/Resources/bin/claude"
+    ],
+    "versionArgs": ["--version"],
+    "invocation": {
+      "args": ["-p", "--output-format", "text", "--input-format", "text"],
+      "promptVia": "stdin"
+    },
+    "auth": {
+      "type": "credentialFile",
+      "paths": ["~/.claude/.credentials.json", "~/.claude.json"]
+    }
+  },
+  {
+    "id": "codex",
+    "name": "Codex",
+    "icon": "chevron.left.forwardslash.chevron.right",
+    "candidatePaths": [
+      "/opt/homebrew/bin/codex",
+      "/usr/local/bin/codex",
+      "~/.local/bin/codex"
+    ],
+    "versionArgs": ["--version"],
+    "invocation": {
+      "args": ["exec", "--skip-git-repo-check", "--ephemeral", "-s", "read-only"],
+      "promptVia": "argTail",
+      "outputLastMessageFlag": "-o"
+    },
+    "auth": {
+      "type": "credentialFile",
+      "paths": ["~/.codex/auth.json"]
+    }
+  }
+]

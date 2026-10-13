@@ -1,0 +1,37 @@
+# Build artifacts
+.build/
+build/
+DerivedData/
+dist/
+
+# XcodeGen 산출물 — project.yml에서 매번 재생성
+recordup.xcodeproj/
+
+# macOS / 사용자 환경
+.DS_Store
+*.xcuserstate
+xcuserdata/
+
+# Swift Package Manager
+.swiftpm/
+Packages/
+*.swiftpm/
+
+# Python (앱이 실행 시 ~/Library/Application Support/recordup 에 venv 생성)
+__pycache__/
+*.pyc
+.venv/
+
+# 로컬 비밀 / 토큰
+.env
+.env.local
+*.pem
+
+# 모델 캐시
+models/
+
+# 패키징
+*.dmg
+
+# Claude Code (로컬 전용 설정만 무시, 공유 설정은 추적)
+.claude/settings.local.json

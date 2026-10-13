@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>recordup · Windows 이식 분석 — 모델 종속성 · 트레이드오프 · 실행 계획</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Pretendard:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #FAFAFA; --surface: #FFFFFF; --fg: #111111; --muted: #6B6B6B;
+    --border: #E5E5E5; --accent: #2F6FEB;
+    --accent-soft: rgba(47, 111, 235, 0.10);
+    --accent-faint: rgba(47, 111, 235, 0.04);
+    --danger: #DC2626; --warn: #EAB308; --success: #17A34A;
+    --code-bg: #131820; --code-fg: #e8e8e0; --code-muted: #95a3b8;
+    --container: 1080px; --gutter: 32px;
+    --leading-body: 1.65; --tracking-display: -0.02em;
+    --fs-h1: clamp(32px, 4.2vw, 48px);
+    --fs-h2: clamp(23px, 2.5vw, 30px);
+    --fs-h3: 18px; --fs-body: 15.5px;
+    --radius: 8px; color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: "Pretendard", "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: var(--fs-body); line-height: var(--leading-body);
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  .container { max-width: var(--container); margin: 0 auto; padding: 0 var(--gutter); }
+  .topnav { position: sticky; top: 0; z-index: 10; background: rgba(250,250,250,0.88); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  .topnav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { display: flex; align-items: center; gap: 10px; color: var(--fg); }
+  .logo-mark { font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 11px; background: var(--fg); color: var(--bg); padding: 4px 6px; border-radius: 4px; letter-spacing: 0.04em; }
+  .logo-name { font-weight: 600; letter-spacing: -0.01em; }
+  .topnav-links { display: flex; gap: 20px; font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--muted); }
+  .topnav-meta { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); }
+  .hero { padding: 72px 0 48px; border-bottom: 1px solid var(--border); }
+  .hero h1 { font-size: var(--fs-h1); font-weight: 600; line-height: 1.1; letter-spacing: var(--tracking-display); margin: 0 0 16px; }
+  .hero .lead { font-size: 16.5px; color: #2a2a2a; line-height: 1.55; max-width: 780px; margin: 0 0 20px; }
+  .hero-meta-row { display: flex; gap: 24px; flex-wrap: wrap; font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--muted); margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--border); }
+  .hero-meta-row dt { color: var(--accent); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
+  .hero-meta-row dd { margin: 4px 0 0; color: var(--fg); font-size: 12.5px; }
+  .hero-meta-row > div { min-width: 170px; }
+  .eyebrow { font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 600; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 12px; }
+  .section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+  .section:last-of-type { border-bottom: none; }
+  .section h2 { font-size: var(--fs-h2); font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 28px; }
+  .section h3 { font-size: var(--fs-h3); font-weight: 600; margin: 30px 0 12px; letter-spacing: -0.005em; }
+  .section p { margin: 0 0 16px; }
+  .section ul, .section ol { padding-left: 22px; margin: 0 0 16px; }
+  .section li { margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; font-size: 13.5px; border: 1px solid var(--border); }
+  thead { background: var(--accent-faint); }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-family: "JetBrains Mono", monospace; font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  td code { font-size: 12px; }
+  code { font-family: "JetBrains Mono", monospace; font-size: 13px; background: var(--accent-soft); color: var(--fg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 16px 18px; border-radius: var(--radius); overflow-x: auto; font-family: "JetBrains Mono", monospace; font-size: 12.5px; line-height: 1.55; margin: 0 0 20px; border: 1px solid #2a3340; }
+  pre code { background: transparent; color: inherit; padding: 0; font-size: 12.5px; }
+  .badge { display: inline-block; font-family: "JetBrains Mono", monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; margin-right: 6px; vertical-align: middle; }
+  .badge-accent { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(47,111,235,0.18); }
+  .badge-keep { background: rgba(23,163,74,0.1); color: var(--success); border: 1px solid rgba(23,163,74,0.2); }
+  .badge-warn { background: rgba(234,179,8,0.12); color: #a8770a; border: 1px solid rgba(234,179,8,0.25); }
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-faint); padding: 16px 20px; margin: 20px 0; border-radius: 0 var(--radius) var(--radius) 0; }
+  .callout-tag { font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.warn { border-left-color: var(--warn); background: rgba(234,179,8,0.06); }
+  .callout.warn .callout-tag { color: #a8770a; }
+  .phase { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 22px 26px; margin: 16px 0 28px; }
+  .phase-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .phase-head h3 { margin: 0; font-size: 17px; }
+  .phase-num { font-family: "JetBrains Mono", monospace; color: var(--accent); font-weight: 600; }
+  .phase-meta { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); }
+  .files { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--muted); margin: 0 0 14px; }
+  .files b { color: var(--fg); font-weight: 600; }
+  .check { list-style: none; padding-left: 0; margin: 8px 0 14px; }
+  .check li { position: relative; padding-left: 26px; margin-bottom: 8px; font-size: 14px; }
+  .check li::before { content: "\2610"; position: absolute; left: 0; top: -1px; font-family: "JetBrains Mono", monospace; color: var(--muted); font-size: 13px; }
+  .check li strong { color: var(--fg); font-weight: 600; }
+  .gate { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--success); background: rgba(23,163,74,0.07); border: 1px solid rgba(23,163,74,0.18); border-radius: 6px; padding: 8px 12px; margin-top: 6px; }
+  .gate b { color: #128a3e; }
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin: 4px 0 0; font-size: 13.5px; }
+  .toc h4 { margin: 0 0 8px; font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .toc ol { padding-left: 18px; margin: 8px 0 0; }
+  .toc li { margin-bottom: 4px; }
+  .pagefoot { border-top: 1px solid var(--border); padding: 32px 0; background: var(--surface); }
+  .pagefoot-base { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: var(--muted); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .mock { white-space: pre; }
+  @media (max-width: 760px) { .hero-meta-row > div { min-width: 0; } .section { padding: 44px 0; } }
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <div class="container topnav-inner">
+    <div class="logo"><span class="logo-mark">ru</span><span class="logo-name">recordup · Windows 이식 분석</span></div>
+    <nav class="topnav-links">
+      <a href="#summary">요약</a><a href="#models">모델 종속성</a><a href="#stt">STT</a><a href="#diar">화자 분리</a><a href="#tradeoff">트레이드오프</a><a href="#plan">실행 계획</a>
+    </nav>
+    <div class="topnav-meta">ANALYSIS · 2026.10.12</div>
+  </div>
+</header>
+<main>
+<section class="hero"><div class="container">
+  <p class="eyebrow">Analysis · Cross-platform</p>
+  <h1>recordup을 Windows에서 쓰려면</h1>
+  <p class="lead">현재 앱은 SwiftUI·AppKit·WhisperKit/SpeakerKit(CoreML)에 묶여 있어 그대로는 Windows에서 돌지 않는다. 다만 <b>모델 원본은 공개 모델이라 플랫폼 독립적</b>이고, Mac 전용인 것은 실행 엔진과 파일 형식이다. 핵심 위험은 STT·화자 분리 엔진 교체에 따른 한국어 품질·화자 수 편차이므로, 골든 테스트셋 검증을 먼저 통과시킨 뒤 Windows 앱을 별도로 만든다.</p>
+  <dl class="hero-meta-row">
+    <div><dt>코드 규모</dt><dd>Swift 약 8,600줄</dd></div>
+    <div><dt>Mac 전용 UI</dt><dd>SwiftUI 21 · AppKit 9 파일</dd></div>
+    <div><dt>권장 경로</dt><dd>맥 유지 + Tauri Windows 앱</dd></div>
+    <div><dt>1차 관문</dt><dd>STT·화자 분리 벤치마크</dd></div>
+  </dl>
+</div></section>
+
+<section class="section" id="summary"><div class="container">
+  <h2>요약</h2>
+  <div class="callout"><div class="callout-tag">결론</div>
+  <p>모델 가중치(Whisper large-v3-turbo, pyannote segmentation-3.0, WeSpeaker, VBx PLDA)는 Windows에서도 쓸 수 있다. 바꿔야 하는 것은 <b>실행 엔진(WhisperKit/SpeakerKit → whisper.cpp + VBx 포함 pyannote community-1 계열)</b>, <b>UI 전체</b>, 오디오·내보내기·설치 파일이다.</p></div>
+  <table><thead><tr><th>영역</th><th>현재 (macOS)</th><th>Windows 대체</th><th>난이도</th></tr></thead><tbody>
+    <tr><td>STT</td><td>WhisperKit + CoreML 632MB</td><td>whisper.cpp + ggml large-v3-turbo Q8_0 (GPU면 F16)</td><td><span class="badge badge-warn">높음</span></td></tr>
+    <tr><td>화자 분리</td><td>SpeakerKit (CoreML)</td><td>speakrs(Rust, VBx) 또는 pyannote.audio community-1 / 대안 sherpa-onnx</td><td><span class="badge badge-warn">높음</span></td></tr>
+    <tr><td>UI</td><td>SwiftUI 21 파일</td><td>Tauri(웹 UI) 재작성</td><td><span class="badge badge-warn">높음</span></td></tr>
+    <tr><td>오디오</td><td>AVFoundation</td><td>ffmpeg / Media Foundation</td><td><span class="badge badge-accent">중간</span></td></tr>
+    <tr><td>AI CLI</td><td><code>Process</code> + <code>ai-tools.json</code></td><td>Windows 경로 추가 + <b>UTF-8 stdin/stdout 강제</b>(CP949 깨짐 방지)</td><td><span class="badge badge-accent">중간</span></td></tr>
+    <tr><td>내보내기</td><td>NSAttributedString PDF/RTF</td><td>HTML→PDF</td><td><span class="badge badge-accent">중간</span></td></tr>
+    <tr><td>저장소·설정</td><td>Application Support · UserDefaults</td><td><code>%APPDATA%\recordup</code> · JSON</td><td><span class="badge badge-keep">낮음</span></td></tr>
+    <tr><td>설치</td><td>.pkg (AI 도구 선택)</td><td>MSI/MSIX/Inno Setup + 코드 서명(SmartScreen)</td><td><span class="badge badge-accent">중간</span></td></tr>
+  </tbody></table>
+</div></section>
+
+<section class="section" id="models"><div class="container">
+  <h2>모델 종속성 — 무엇이 Mac 전용인가</h2>
+  <p>번들 <code>Resources/models/</code>의 <code>README.txt</code>에 적힌 원본 가중치 출처로 확인했다.</p>
+  <table><thead><tr><th>구성</th><th>번들 경로</th><th>원본 모델</th><th>라이선스</th></tr></thead><tbody>
+    <tr><td>STT</td><td><code>whisperkit-coreml/openai_whisper-large-v3-v20240930_turbo_632MB</code></td><td>OpenAI whisper-large-v3-turbo</td><td>MIT</td></tr>
+    <tr><td>구간 분할</td><td><code>speaker_segmenter/pyannote-v3</code></td><td>pyannote/segmentation-3.0</td><td>MIT</td></tr>
+    <tr><td>임베딩</td><td><code>speaker_embedder/pyannote-v3</code></td><td>WeSpeaker (pyannote 3.x 계열, 정확한 변형명은 추정)</td><td>CC-BY-4.0</td></tr>
+    <tr><td>군집화</td><td><code>speaker_clusterer/pyannote-v4/PldaProjector</code></td><td>VBx (PLDA)</td><td>BUT VBx</td></tr>
+  </tbody></table>
+  <table><thead><tr><th>계층</th><th>Mac 전용?</th><th>근거</th></tr></thead><tbody>
+    <tr><td>모델 가중치</td><td><span class="badge badge-keep">아니오</span></td><td>모두 공개 모델, 다중 형식 존재</td></tr>
+    <tr><td><code>.mlmodelc</code> 형식</td><td><span class="badge badge-warn">예</span></td><td>CoreML 컴파일 산출물</td></tr>
+    <tr><td>632MB 압축 (4-bit OD-MBP)</td><td><span class="badge badge-warn">예</span></td><td>Argmax의 CoreML용 압축. 원본 대비 WER 1% 이내를 표방</td></tr>
+    <tr><td>WhisperKit / SpeakerKit</td><td><span class="badge badge-warn">예</span></td><td>Swift 패키지, macOS 14+. Windows 지원 없음. Android/Linux판은 deprecated, 후속은 Android(LiteRT) 대상</td></tr>
+  </tbody></table>
+</div></section>
+
+<section class="section" id="stt"><div class="container">
+  <h2>STT — 같은 가중치, 다른 압축</h2>
+  <table><thead><tr><th>방법</th><th>형식·크기</th><th>가속</th><th>비고</th></tr></thead><tbody>
+    <tr><td><b>whisper.cpp</b> (권장)</td><td>ggml large-v3-turbo F16 1.5GB / Q8_0 874MB</td><td>CPU · CUDA · Vulkan</td><td>Q8_0은 손실이 거의 없다는 평가. Q2_K는 사용 불가 수준</td></tr>
+    <tr><td>faster-whisper</td><td>CTranslate2 int8/fp16</td><td>CPU · CUDA</td><td>Python 런타임 필요</td></tr>
+    <tr><td>ONNX / OpenVINO</td><td>onnx-community 변환본</td><td>CPU · DirectML · Intel</td><td>통합 난도 중간</td></tr>
+  </tbody></table>
+  <div class="callout warn"><div class="callout-tag">주의</div><p>Mac(4-bit OD-MBP)과 Windows(Q8_0)는 같은 모델의 다른 압축본이라 출력이 글자 하나까지 같지는 않다. 632MB 변형만 따로 잰 공개 WER 수치는 확인하지 못했으니 직접 측정한다.</p></div>
+</div></section>
+
+<section class="section" id="diar"><div class="container">
+  <h2>화자 분리 — 군집화까지 같아야 결과가 같다</h2>
+  <table><thead><tr><th>방법</th><th>분할</th><th>임베딩</th><th>군집화</th><th>비고</th></tr></thead><tbody>
+    <tr><td>pyannote.audio community-1</td><td>seg-3.0</td><td>WeSpeaker</td><td><b>VBx</b></td><td>기준 구현. Python+PyTorch라 배포가 무겁다 → 개발 PC 기준선 용도</td></tr>
+    <tr><td><b>speakrs</b> (Rust, 권장 후보)</td><td>seg-3.0</td><td>WeSpeaker</td><td><b>VBx + PLDA</b></td><td>community-1 전체 구현을 표방(자체 수치 DER 7.1% vs 7.2%). 서드파티 성숙도 위험</td></tr>
+    <tr><td>sherpa-onnx</td><td>seg-3.0</td><td>WeSpeaker 등</td><td>fast clustering</td><td>Windows x64 공식, C/C#/Rust API. 군집화가 달라 화자 수가 다르게 나올 수 있음</td></tr>
+    <tr><td>pyannote-rs</td><td>seg-3.0</td><td>WeSpeaker</td><td>자체</td><td>DirectML 지원, 기능 적음</td></tr>
+  </tbody></table>
+  <p>회의록에서는 STT 정확도보다 <b>화자 수가 틀어지는 문제</b>가 체감이 크다(화자 이름 매핑이 깨진다). 그래서 화자 분리도 골든 테스트셋 비교 대상에 넣는다.</p>
+</div></section>
+
+<section class="section" id="tradeoff"><div class="container">
+  <h2>접근 방식과 트레이드오프</h2>
+  <table><thead><tr><th>방식</th><th>장점</th><th>단점</th></tr></thead><tbody>
+    <tr><td>A. 양쪽 모두 크로스플랫폼 재작성</td><td>코드베이스 하나</td><td>맥까지 재작성, 맥 품질·속도 퇴행 위험</td></tr>
+    <tr><td><b>B. 맥 유지 + Windows 별도</b> (권장 시작점)</td><td>맥 품질 유지, 위험이 Windows에만 있음</td><td>이중 유지보수, 기능 차이 발생</td></tr>
+    <tr><td>C. Swift 공통 코어 + 플랫폼별 UI</td><td>로직 재사용</td><td>Windows Swift 도구 체인 미성숙, STT는 어차피 별도</td></tr>
+    <tr><td>D. Windows는 클라우드 STT</td><td>하드웨어 편차 없음</td><td>오프라인·로컬 처리 가치 훼손, 비용·개인정보</td></tr>
+  </tbody></table>
+  <h3>헷지 수단</h3>
+  <ul>
+    <li><b>골든 테스트셋 관문</b> — 실제 회의 녹음 + 정답 전사·화자 라벨로 CER·DER·화자 수를 현재 Mac 결과와 비교. 기준 미달이면 중단.</li>
+    <li><b>맥 동결</b> — Windows가 따라올 때까지 맥 앱은 건드리지 않는다.</li>
+    <li><b>데이터로 공유</b> — <code>Resources/prompts/*.md</code>, <code>ai-tools.json</code>, 릴리스 노트, 전사·회의록 <code>.md</code> 형식을 두 앱의 계약으로 삼는다.</li>
+    <li><b>하드웨어 단계</b> — GPU 유무·메모리로 turbo / small·medium 자동 선택, 예상 처리 시간 표시.</li>
+    <li><b>CLI 인코딩 테스트</b> — 한글 프롬프트 왕복을 Windows CI에 고정.</li>
+    <li><b>서명 예산</b> — OV/EV 인증서 또는 Microsoft Trusted Signing(자격 확인).</li>
+    <li><b>합칠 길</b> — whisper.cpp는 Metal·CoreML 백엔드가 있어, 나중에 맥도 같은 엔진으로 옮길지 테스트셋으로 판단.</li>
+  </ul>
+</div></section>
+
+<section class="section" id="plan"><div class="container">
+  <h2>단계별 실행 계획</h2>
+  <div class="phase"><div class="phase-head"><h3><span class="phase-num">P1</span> 엔진 검증</h3><span class="phase-meta">1~2주</span></div>
+    <ul class="check">
+      <li>한국어 골든 테스트셋 구성 (회의 녹음 5~10건, 정답 전사·화자 라벨)</li>
+      <li>현재 Mac(WhisperKit/SpeakerKit) 결과를 기준선으로 저장</li>
+      <li>whisper.cpp Q8_0/F16 — CPU 전용 노트북, NVIDIA 데스크톱에서 CER·처리 시간 측정</li>
+      <li>speakrs · sherpa-onnx · pyannote.audio community-1의 DER·화자 수 비교</li>
+    </ul>
+    <div class="gate"><b>관문</b> CER·DER이 기준선과 비슷하고, 1시간 녹음 처리 시간이 허용 범위면 P2 진행</div></div>
+  <div class="phase"><div class="phase-head"><h3><span class="phase-num">P2</span> Windows MVP</h3><span class="phase-meta">Tauri + whisper.cpp + 화자 분리</span></div>
+    <ul class="check">
+      <li>파일 선택 → 전사 → 화자 분리 → 화자 매핑 → <code>claude -p</code> 회의록</li>
+      <li>프롬프트·<code>ai-tools.json</code> 공유, Windows 경로·UTF-8 처리</li>
+      <li>출력 <code>.md</code> 형식을 맥과 동일하게 유지</li>
+    </ul></div>
+  <div class="phase"><div class="phase-head"><h3><span class="phase-num">P3</span> 배포</h3><span class="phase-meta">설치 파일·서명</span></div>
+    <ul class="check">
+      <li>설치 마법사에서 AI 도구 선택 (맥 .pkg와 동일 UX)</li>
+      <li>하드웨어 단계별 모델 선택</li>
+      <li>코드 서명으로 SmartScreen 경고 완화</li>
+    </ul></div>
+  <div class="phase"><div class="phase-head"><h3><span class="phase-num">P4</span> 통합 판단</h3><span class="phase-meta">선택</span></div>
+    <ul class="check"><li>테스트셋으로 맥을 같은 엔진으로 옮길지 결정</li></ul></div>
+  <div class="callout warn"><div class="callout-tag">한계</div><p>프록시로 Argmax 블로그·Hugging Face 모델 카드 원문을 직접 열지 못해 일부는 검색 요약에 기댔다. speakrs 성능 수치와 community-1의 정확한 임베딩 모델명은 원문으로 재확인 필요.</p></div>
+</div></section>
+
+<section class="section"><div class="container">
+  <h2>출처</h2>
+  <ul>
+    <li><a href="https://arxiv.org/pdf/2507.10860">WhisperKit 논문 (OD-MBP)</a></li>
+    <li><a href="https://huggingface.co/argmaxinc/whisperkit-coreml">argmaxinc/whisperkit-coreml</a></li>
+    <li><a href="https://www.argmaxinc.com/blog/speakerkit">Argmax SpeakerKit 블로그</a> · <a href="https://www.argmaxinc.com/blog/pyannote-argmax">Argmax × pyannote</a></li>
+    <li><a href="https://huggingface.co/pyannote/speaker-diarization-community-1">pyannote speaker-diarization-community-1</a> · <a href="https://arxiv.org/pdf/2510.19572">VBx 논문</a></li>
+    <li><a href="https://docs.rs/speakrs">speakrs</a> · <a href="https://github.com/k2-fsa/sherpa-onnx">sherpa-onnx</a> · <a href="https://github.com/doc/pyannote-rs">pyannote-rs</a></li>
+    <li><a href="https://huggingface.co/ggerganov/whisper.cpp">whisper.cpp ggml 모델</a> · <a href="https://huggingface.co/Pomni/whisper-large-v3-turbo-ggml-allquants">large-v3-turbo 양자화본</a></li>
+  </ul>
+</div></section>
+</main>
+<footer class="pagefoot"><div class="container pagefoot-base"><span>recordup · Windows 이식 분석</span><span>2026-10-12</span></div></footer>
+</body>
+</html>

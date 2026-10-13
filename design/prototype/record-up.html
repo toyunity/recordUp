@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>record-up — 회의록 어플리케이션 디자인</title>
+<meta name="viewport" content="width=1400, initial-scale=1" />
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    background: #efeae3;
+    color: #1f1a17;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  /* desktop "wallpaper" — soft warm gradient with a hint of the brand colors */
+  body {
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 10%, rgba(255,106,61,0.18), transparent 60%),
+      radial-gradient(ellipse 70% 60% at 85% 90%, rgba(224,36,94,0.16), transparent 60%),
+      linear-gradient(180deg, #f1ece4 0%, #e8e1d6 100%);
+    background-attachment: fixed;
+  }
+  #root {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 32px 24px;
+    box-sizing: border-box;
+  }
+  /* loader */
+  .ru-boot {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: rgba(31,26,23,0.5);
+    letter-spacing: 0.04em;
+  }
+</style>
+<!-- React + Babel pinned -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"><div class="ru-boot">loading…</div></div>
+
+<!-- Tweaks defaults (host rewrites this on disk) -->
+<script>
+  window.TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "screen": "drop",
+    "theme": "warm",
+    "showWaveform": true,
+    "sidebarOpen": true,
+    "selectedMeeting": "current"
+  }/*EDITMODE-END*/;
+</script>
+
+<!-- Components -->
+<script type="text/babel" src="components/tokens.jsx"></script>
+<script type="text/babel" src="components/icons.jsx"></script>
+<script type="text/babel" src="components/data.jsx"></script>
+<script type="text/babel" src="components/window-shell.jsx"></script>
+<script type="text/babel" src="components/sidebar.jsx"></script>
+<script type="text/babel" src="components/screen-drop.jsx"></script>
+<script type="text/babel" src="components/screen-progress.jsx"></script>
+<script type="text/babel" src="components/screen-transcript.jsx"></script>
+<script type="text/babel" src="components/screen-minutes.jsx"></script>
+<script type="text/babel" src="components/screen-library.jsx"></script>
+<script type="text/babel" src="components/screen-templates.jsx"></script>
+<script type="text/babel" src="components/screen-settings.jsx"></script>
+<script type="text/babel" src="components/sheet-template-picker.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+</body>
+</html>

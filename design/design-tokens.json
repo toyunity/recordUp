@@ -1,0 +1,128 @@
+{
+  "$schema": "https://example.com/design-tokens.json",
+  "version": "1.0.0",
+  "app": "record-up",
+
+  "typography": {
+    "fontUI": "-apple-system, SF Pro Text, Helvetica Neue, sans-serif",
+    "fontDisplay": "-apple-system, SF Pro Display, Helvetica Neue, sans-serif",
+    "fontMono": "ui-monospace, SF Mono, Menlo, monospace",
+    "size": {
+      "xs": 11,
+      "sm": 12,
+      "body": 13,
+      "md": 14,
+      "lg": 16,
+      "xl": 19,
+      "2xl": 24,
+      "display": 32
+    },
+    "weight": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "letterSpacing": {
+      "tight": "-0.018em",
+      "normal": "-0.005em"
+    }
+  },
+
+  "spacing": {
+    "0.5": 2,
+    "1": 4,
+    "1.5": 6,
+    "2": 8,
+    "2.5": 10,
+    "3": 12,
+    "4": 14,
+    "5": 18,
+    "6": 24,
+    "8": 32,
+    "10": 40
+  },
+
+  "radius": {
+    "sm": 6,
+    "md": 8,
+    "lg": 12,
+    "xl": 16,
+    "full": 9999
+  },
+
+  "shadow": {
+    "card": "0 2px 8px rgba(0,0,0,0.04)",
+    "cardHover": "0 4px 16px rgba(0,0,0,0.06)",
+    "popover": "0 8px 24px rgba(0,0,0,0.10)"
+  },
+
+  "themes": {
+    "warm": {
+      "canvas": "#f6f1ea",
+      "surface": "#ffffff",
+      "surfaceMuted": "#fbf6ef",
+      "sidebar": "rgba(248,242,232,0.72)",
+      "line": "rgba(31,26,23,0.08)",
+      "lineStrong": "rgba(31,26,23,0.14)",
+      "ink": "#1f1a17",
+      "ink70": "rgba(31,26,23,0.7)",
+      "ink50": "rgba(31,26,23,0.5)",
+      "ink35": "rgba(31,26,23,0.35)",
+      "ink20": "rgba(31,26,23,0.2)",
+      "ink10": "rgba(31,26,23,0.1)",
+      "accent": "#FF6A3D",
+      "accent2": "#E0245E",
+      "accentSoft": "rgba(255,106,61,0.10)",
+      "accent2Soft": "rgba(224,36,94,0.10)",
+      "gradient": "linear-gradient(135deg, #FF6A3D 0%, #E0245E 100%)",
+      "success": "#1f8a5b",
+      "decision": "#7A5AE0",
+      "action": "#0E7C86"
+    },
+    "mono": {
+      "canvas": "#fafaf8",
+      "surface": "#ffffff",
+      "surfaceMuted": "#f3f3f0",
+      "sidebar": "rgba(245,245,242,0.85)",
+      "line": "rgba(0,0,0,0.08)",
+      "lineStrong": "rgba(0,0,0,0.16)",
+      "ink": "#0d0d0d",
+      "ink70": "rgba(13,13,13,0.7)",
+      "ink50": "rgba(13,13,13,0.5)",
+      "ink35": "rgba(13,13,13,0.35)",
+      "ink20": "rgba(13,13,13,0.2)",
+      "ink10": "rgba(13,13,13,0.08)",
+      "accent": "#FF6A3D",
+      "accent2": "#FF6A3D",
+      "accentSoft": "rgba(255,106,61,0.10)",
+      "accent2Soft": "rgba(255,106,61,0.10)",
+      "gradient": "#FF6A3D",
+      "success": "#0d7a4a",
+      "decision": "#0d0d0d",
+      "action": "#0d0d0d"
+    },
+    "dark": {
+      "canvas": "#1a1614",
+      "surface": "#221d1a",
+      "surfaceMuted": "#1f1a17",
+      "sidebar": "rgba(20,16,14,0.82)",
+      "line": "rgba(255,255,255,0.07)",
+      "lineStrong": "rgba(255,255,255,0.14)",
+      "ink": "#f4ece2",
+      "ink70": "rgba(244,236,226,0.7)",
+      "ink50": "rgba(244,236,226,0.5)",
+      "ink35": "rgba(244,236,226,0.35)",
+      "ink20": "rgba(244,236,226,0.2)",
+      "ink10": "rgba(244,236,226,0.1)",
+      "accent": "#FF8B62",
+      "accent2": "#F04C7E",
+      "accentSoft": "rgba(255,139,98,0.16)",
+      "accent2Soft": "rgba(240,76,126,0.16)",
+      "gradient": "linear-gradient(135deg, #FF8B62 0%, #F04C7E 100%)",
+      "success": "#3ec78a",
+      "decision": "#a78bfa",
+      "action": "#3ec7c7"
+    }
+  }
+}
