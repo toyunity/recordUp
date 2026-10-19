@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Silero VAD 도입 설계</title>
+<style>
+  :root {
+    --bg: #fafaf9; --surface: #ffffff; --text: #1c1917; --muted: #57534e; --line: #e7e5e4;
+    --accent: #1d4ed8; --accent-soft: #eff6ff; --warn: #b45309; --warn-soft: #fffbeb; --ok: #15803d;
+    --code-bg: #f5f5f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c0a09; --surface: #1c1917; --text: #f5f5f4; --muted: #a8a29e; --line: #292524;
+      --accent: #60a5fa; --accent-soft: #172554; --warn: #fbbf24; --warn-soft: #422006; --ok: #4ade80;
+      --code-bg: #292524;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.7 "Inter", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+  }
+  main { max-width: 920px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 20px; margin: 48px 0 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 24px 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  code, pre { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow-x: auto; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin: 16px 0; }
+  .summary { border-left: 4px solid var(--accent); background: var(--accent-soft); }
+  .warn { border-left: 4px solid var(--warn); background: var(--warn-soft); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; background: var(--surface); }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; }
+  .pick { color: var(--ok); font-weight: 600; }
+  .tag { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 999px; background: var(--code-bg); color: var(--muted); }
+  .phase { display: grid; grid-template-columns: 56px 1fr; gap: 12px; }
+  .phase .num { font: 700 18px "JetBrains Mono", ui-monospace, monospace; color: var(--accent); }
+  .phase ul { margin: 6px 0; padding-left: 18px; }
+  .stop { color: var(--warn); font-weight: 600; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+<h1>Silero VAD 도입 설계</h1>
+<p class="sub">recordUp · STT 단계 · 작성 2026-10-19 · 실행 지시문 <code>docs/specs/silero-vad-goal.md</code></p>
+
+<div class="card summary">
+  <strong>요약</strong><br>
+  지금 앱도 VAD를 쓰지만, 음량 기반 <code>EnergyVAD</code>로 30초 분할 지점만 고른다. 무음 구간도 모두 Whisper가 디코딩하므로 환각 문장이 생긴다.<br>
+  Silero VAD(신경망, MIT)를 CoreML로 동봉하고 WhisperKit의 <code>VoiceActivityDetector</code> 확장점에 끼운다.
+  그리고 음성 구간만 <code>clipTimestamps</code>로 넘겨 무음을 건너뛴다.<br>
+  WhisperKit 내부 수정이나 새 Swift 패키지 없이, 새 파일 1개와 기존 파일 몇 곳 수정으로 끝나는 것이 기본안이다.
+</div>
+
+<h2>1. 현재 동작 (코드로 확인)</h2>
+<div class="table-wrap"><table>
+  <tr><th>항목</th><th>현재</th><th>근거</th></tr>
+  <tr><td>전사 옵션</td><td><code>DecodingOptions(language: "ko", wordTimestamps: true, chunkingStrategy: .vad)</code></td><td><code>STT/Transcriber.swift</code> <code>transcribe</code></td></tr>
+  <tr><td>VAD 종류</td><td><code>EnergyVAD</code>, 프레임 0.1초, 임계값 0.02 고정. 설정에서 지정하지 않으면 이것이 쓰인다</td><td>WhisperKit <code>EnergyVAD.swift</code>, <code>WhisperKit.swift</code>의 <code>voiceActivityDetector ?? EnergyVAD()</code></td></tr>
+  <tr><td>30초 분할</td><td>30초 창 안의 <strong>가장 긴 무음 가운데</strong>에서 자른다</td><td><code>AudioChunker.swift</code> <code>splitOnMiddleOfLongestSilence</code></td></tr>
+  <tr><td>무음 건너뛰기</td><td><strong>하지 않는다.</strong> <code>chunkAll</code>이 seek clip 전체를 빈틈없이 자른다</td><td><code>AudioChunker.chunkAll</code></td></tr>
+  <tr><td>seek clip</td><td><code>DecodingOptions.clipTimestamps</code>가 비면 오디오 전체가 하나의 clip이다</td><td><code>chunkAll</code>의 <code>prepareSeekClips</code></td></tr>
+  <tr><td>화자 분리</td><td>전사 뒤 SpeakerKit(pyannote)가 따로 돌고 <code>addSpeakerInfo</code>로 세그먼트에 화자를 붙인다</td><td><code>Pipeline/Diarizer.swift</code></td></tr>
+</table></div>
+
+<p>
+따라서 회의 전후의 정적, 긴 침묵, 소음만 있는 구간이 그대로 디코딩된다.
+"시청해 주셔서 감사합니다" 같은 환각 문장은 이런 구간에서 나온다.
+에너지 임계값이 고정이라 작은 목소리는 무음으로, 에어컨 소음은 음성으로 잘못 판정될 수도 있다.
+</p>
+
+<h2>2. 목표와 범위</h2>
+<ul>
+  <li><strong>목표 1</strong>: 무음·소음 구간을 Whisper에 넣지 않아 환각 문장을 없앤다.</li>
+  <li><strong>목표 2</strong>: 30초 분할 지점을 신경망 판정으로 골라 문장 중간이 잘리는 일을 줄인다.</li>
+  <li><strong>목표 3</strong>: 무음이 긴 녹음의 전사 시간을 줄인다.</li>
+  <li><strong>범위 밖</strong>: 실시간 녹음, 화자 분리 모델 교체, Windows 판.</li>
+</ul>
+
+<h2>3. 결정과 대안</h2>
+
+<h3>D1. 모델을 어떻게 가져오나</h3>
+<div class="table-wrap"><table>
+  <tr><th>안</th><th>내용</th><th>장점</th><th>단점</th></tr>
+  <tr><td class="pick">A. CoreML 변환본 + 자체 래퍼 (추천)</td><td>HF <code>FluidInference/silero-vad-coreml</code> 모델 파일만 받아 동봉하고, 100줄 안팎의 Swift 래퍼로 호출한다</td><td>새 Swift 의존성 없음. WhisperKit과 같은 CoreML 경로. 크기 수 MB 이하로 예상</td><td>입출력 텐서 형식을 직접 맞춰야 함. 변환본 품질은 M0에서 확인해야 함</td></tr>
+  <tr><td>B. FluidAudio 패키지</td><td>Apache 2.0 SDK의 <code>VadManager.segmentSpeech</code>를 쓴다</td><td>후처리·분할 로직이 이미 있음</td><td>ASR·화자 분리까지 든 큰 패키지라 WhisperKit과 역할이 겹침. 기본이 런타임 HF 다운로드라 오프라인 설정 필요. Swift 6 이상 요구</td></tr>
+  <tr><td>C. 직접 변환</td><td><code>snakers4/silero-vad</code> 원본을 <code>coremltools</code>로 변환</td><td>버전을 직접 고름. 출처가 가장 분명</td><td>변환·검증 작업이 큼. A가 막힐 때의 대안</td></tr>
+</table></div>
+<p>A를 기본으로 하되, M0에서 변환본의 라이선스와 정확도가 확인되지 않으면 C로 간다. B는 래퍼가 예상보다 커질 때만 재검토한다.</p>
+
+<h3>D2. 앱에 어떻게 끼우나</h3>
+<div class="table-wrap"><table>
+  <tr><th>안</th><th>내용</th><th>판단</th></tr>
+  <tr><td class="pick">VoiceActivityDetector 상속 + clipTimestamps (추천)</td><td><code>SileroVAD</code>가 <code>voiceActivity(in:) -&gt; [Bool]</code>을 구현해 <code>WhisperKitConfig(voiceActivityDetector:)</code>로 주입한다. 음성 구간은 공개 함수 <code>calculateActiveChunks</code>로 구해 <code>clipTimestamps</code>로 넘긴다</td><td>WhisperKit 공개 확장점만 쓴다. 분할 지점과 건너뛰기를 한 모델로 해결</td></tr>
+  <tr><td>오디오를 잘라 여러 번 전사</td><td>음성 구간마다 <code>transcribe</code>를 따로 부르고 시각을 보정</td><td>시각 보정·문맥 단절을 직접 처리해야 함. 불필요</td></tr>
+  <tr><td>전사 후 필터</td><td>전사 결과에서 VAD 무음 구간 문장을 지움</td><td>시간 절감이 없음. 건너뛰기가 실패할 때의 보완책으로만 고려</td></tr>
+</table></div>
+
+<h3>D3. 확률을 구간으로 바꾸는 후처리</h3>
+<p>Silero 원본 <code>get_speech_timestamps</code> 기본값을 출발점으로 하되, 회의 녹음에 맞게 무음과 여백을 늘린다. 최종 값은 M4 측정으로 정한다.</p>
+<div class="table-wrap"><table>
+  <tr><th>값</th><th>Silero 기본</th><th>초기값</th><th>이유</th></tr>
+  <tr><td>프레임</td><td>512샘플(16kHz), 컨텍스트 64샘플</td><td>같음</td><td>모델 입력 규격</td></tr>
+  <tr><td>임계값</td><td>0.5</td><td>0.5</td><td>—</td></tr>
+  <tr><td>해제 임계값</td><td>없으면 임계값 − 0.15</td><td>0.35</td><td>말끝이 흐려도 구간이 끊기지 않게</td></tr>
+  <tr><td>최소 발화</td><td>250ms</td><td>250ms</td><td>기침·클릭 제거</td></tr>
+  <tr><td>최소 무음</td><td>100ms</td><td>500ms</td><td>짧은 숨에 구간이 쪼개져 Whisper 문맥이 끊기는 것 방지</td></tr>
+  <tr><td>앞뒤 여백</td><td>30ms</td><td>200ms</td><td>첫 음절·끝 음절 잘림 방지</td></tr>
+</table></div>
+<p>출처: <a href="https://github.com/snakers4/silero-vad/blob/master/src/silero_vad/utils_vad.py">silero-vad utils_vad.py</a> (상태 형태 <code>(2, batch, 128)</code>, 16kHz 창 512, 컨텍스트 64).</p>
+
+<h3>D4. 사용자 설정</h3>
+<p>
+설정 화면에 "무음 구간 건너뛰기" 토글 하나만 둔다(<code>vadSkipSilence</code>, 기본 켬).
+끄면 Silero는 분할 지점 선택에만 쓰인다. 작은 목소리가 잘리는 녹음을 만났을 때 사용자가 바로 되돌릴 수 있게 하는 안전장치다.
+임계값 같은 세부 값은 노출하지 않는다.
+</p>
+
+<h2>4. 목표 구조</h2>
+<pre><code>AudioLoader (16kHz mono Float32)
+   │
+   ▼
+Transcriber.warmUp ── WhisperKitConfig(voiceActivityDetector: SileroVAD 또는 EnergyVAD 폴백)
+   │
+   ▼
+Transcriber.transcribe
+   ├─ vadSkipSilence 켬 → SileroVAD.calculateActiveChunks → DecodingOptions.clipTimestamps
+   └─ WhisperKit.transcribe(chunkingStrategy: .vad)
+         └─ AudioChunker: clip마다 30초 창 → SileroVAD로 가장 긴 무음 가운데에서 분할
+   │
+   ▼
+Diarizer (SpeakerKit) → addSpeakerInfo → EditableTranscript</code></pre>
+
+<div class="table-wrap"><table>
+  <tr><th>파일</th><th>변경</th></tr>
+  <tr><td><code>Sources/recordup/STT/SileroVAD.swift</code></td><td>신규. CoreML 로드, 프레임 루프(컨텍스트·상태 유지), 히스테리시스 후처리, <code>selfCheck()</code></td></tr>
+  <tr><td><code>Sources/recordup/STT/Transcriber.swift</code></td><td>VAD 주입, 폴백, <code>clipTimestamps</code> 계산, 음성 없음 처리</td></tr>
+  <tr><td><code>Sources/recordup/AppPaths.swift</code></td><td><code>bundledVADFolder</code></td></tr>
+  <tr><td><code>Sources/recordup/Sheets/SettingsView.swift</code></td><td>토글 1개</td></tr>
+  <tr><td><code>Sources/recordup/App.swift</code></td><td>DEBUG <code>selfCheck</code> 호출 추가</td></tr>
+  <tr><td><code>Scripts/fetch-models.sh</code></td><td>VAD 모델 다운로드</td></tr>
+  <tr><td><code>THIRD_PARTY_NOTICES.md</code>, <code>CLAUDE.md</code>, <code>docs/modules/stt.md</code>, <code>README.md</code></td><td>고지·저장 위치·모듈 문서·특징</td></tr>
+</table></div>
+
+<h2>5. 미확인 항목</h2>
+<div class="card warn">
+  이 문서를 쓴 환경에서는 프록시가 Hugging Face를 막아 아래를 확인하지 못했다. M0에서 확인한다.
+  <ul>
+    <li><code>FluidInference/silero-vad-coreml</code>의 라이선스 원문, Silero 버전, 파일 이름·크기, 입출력 텐서 이름과 형태</li>
+    <li>변환본이 512샘플 단위인지, 여러 프레임을 한 번에 받는 형태인지 (FluidAudio 문서는 256ms 단위 확률을 언급)</li>
+    <li>CoreML 호출을 프레임마다 할 때의 속도 (1시간 오디오 ≈ 112,500 프레임)</li>
+    <li><code>clipTimestamps</code>를 줄 때 결과 세그먼트 시각이 원본 기준 절대 시각인지</li>
+  </ul>
+  참고: <a href="https://github.com/FluidInference/FluidAudio">FluidAudio</a> (Apache 2.0, 모델은 MIT/Apache 2.0이라고 명시),
+  2차 출처 <a href="https://huggingface.co/DictionLabs/silero-vad-coreml">DictionLabs/silero-vad-coreml</a> 카드는 FluidInference 변환본을 MIT로 재게시했다고 적는다.
+</div>
+
+<h2>6. 실행 계획</h2>
+
+<div class="card phase">
+  <div class="num">M0</div>
+  <div><strong>사전 검증</strong> <span class="tag">앱 코드 변경 없음</span>
+    <ul>
+      <li>모델 확보와 입출력 확인. 원본 Silero와 프레임별 확률 차이 0.05 이하</li>
+      <li>1시간 오디오 VAD 처리 30초 이하</li>
+      <li>테스트 세트 T1~T4를 만들고 현재 앱으로 기준선 측정</li>
+    </ul>
+    <span class="stop">승인 지점 1</span> — 모델 출처·통합 방식·기준선을 보고하고 멈춘다.
+  </div>
+</div>
+<div class="card phase">
+  <div class="num">M1</div>
+  <div><strong>SileroVAD 구현</strong>
+    <ul>
+      <li>VoiceActivityDetector 상속, 후처리, 폴백, <code>selfCheck</code></li>
+      <li>완료 기준: 빌드 통과, assert 통과, 모델이 없어도 EnergyVAD로 전사됨</li>
+    </ul>
+  </div>
+</div>
+<div class="card phase">
+  <div class="num">M2</div>
+  <div><strong>무음 건너뛰기</strong>
+    <ul>
+      <li><code>clipTimestamps</code> 연결, 음성 없음 처리</li>
+      <li>완료 기준: 화자 분리 정렬 정상, 세그먼트 시각이 원본과 일치</li>
+    </ul>
+  </div>
+</div>
+<div class="card phase">
+  <div class="num">M3</div>
+  <div><strong>번들·설정·문서</strong>
+    <ul>
+      <li>fetch-models, AppPaths, 설정 토글, 고지·문서</li>
+      <li>완료 기준: <code>./Scripts/release.sh</code> pkg에 모델 포함, 크기 증가 5MB 이하</li>
+    </ul>
+  </div>
+</div>
+<div class="card phase">
+  <div class="num">M4</div>
+  <div><strong>검증과 조정</strong>
+    <ul>
+      <li>T1~T4 재측정, 기준선과 비교표</li>
+      <li>통과 기준: T2·T3 환각 0건, T1·T4 누락 증가 없음, T2·T3 전사 시간 감소</li>
+    </ul>
+    <span class="stop">승인 지점 2</span> — 결과를 보고하고 멈춘다. 커밋은 지시가 있을 때만.
+  </div>
+</div>
+
+<h3>테스트 세트</h3>
+<div class="table-wrap"><table>
+  <tr><th>ID</th><th>구성</th><th>보는 것</th></tr>
+  <tr><td>T1</td><td>한국어 회의 원본(사용자 제공, 없으면 <code>say -v Yuna</code> 합성 2인 대화)</td><td>정상 녹음에서 누락이 없는지</td></tr>
+  <tr><td>T2</td><td>T1 앞뒤에 무음 30초</td><td>전후 정적의 환각</td></tr>
+  <tr><td>T3</td><td>T1 중간에 무음 10초 × 3, 약한 소음(−40dBFS 백색잡음) 깔기</td><td>소음을 음성으로 보지 않는지</td></tr>
+  <tr><td>T4</td><td>T1을 −20dB 감쇠</td><td>작은 목소리를 무음으로 보지 않는지</td></tr>
+</table></div>
+
+<h2>7. 위험과 대응</h2>
+<div class="table-wrap"><table>
+  <tr><th>위험</th><th>대응</th></tr>
+  <tr><td>작은 목소리·말끝이 잘림</td><td>여백 200ms·해제 임계값, T4로 검증, 설정 토글로 끌 수 있게</td></tr>
+  <tr><td>프레임별 CoreML 호출이 느림</td><td>M0에서 측정. 느리면 여러 프레임을 받는 변환본(C안)이나 결과 캐시</td></tr>
+  <tr><td>구간이 잘게 쪼개져 Whisper 문맥 손실</td><td>최소 무음 500ms, 가까운 구간 병합</td></tr>
+  <tr><td>변환본 라이선스 불명확</td><td>원문 확인 전에는 동봉하지 않음. 불명확하면 C안</td></tr>
+  <tr><td>WhisperKit 업데이트로 확장점 변경</td><td><code>project.yml</code>의 WhisperKit 버전 범위 유지, 업데이트 시 <code>selfCheck</code>와 T2 재측정</td></tr>
+</table></div>
+</main>
+</body>
+</html>
