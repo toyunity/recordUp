@@ -1,0 +1,3 @@
+// 개인 빌드 설정. `cp Local.xcconfig.example Local.xcconfig` 후 값을 채운다 (Local.xcconfig는 커밋하지 않음).
+// 설정 화면 "개발/지원" 연락처. 비우면 GitHub 저장소 주소가 표시된다.
+SUPPORT_CONTACT =

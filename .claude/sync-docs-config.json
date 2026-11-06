@@ -1,0 +1,16 @@
+{
+  "file_patterns": ["*.swift"],
+  "mapping": [
+    {"source": "Sources/recordup/Audio/**", "docs": ["docs/modules/audio.md"]},
+    {"source": "Sources/recordup/STT/**", "docs": ["docs/modules/stt.md"]},
+    {"source": "Sources/recordup/Pipeline/**", "docs": ["docs/modules/pipeline.md"]},
+    {"source": "Sources/recordup/Claude/**", "docs": ["docs/modules/claude.md"]},
+    {"source": "Sources/recordup/AITools/**", "docs": ["docs/modules/ai-tools.md"]},
+    {"source": "Sources/recordup/Export/**", "docs": ["docs/modules/export.md"]},
+    {"source": "Sources/recordup/Library/**", "docs": ["docs/modules/library.md"]},
+    {"source": "Sources/recordup/Root/**", "docs": ["docs/modules/root.md"]},
+    {"source": "Sources/recordup/Sheets/**", "docs": ["docs/modules/sheets.md"]},
+    {"source": "Sources/recordup/Theme.swift", "docs": ["docs/patterns/theme.md"]},
+    {"source": "Sources/recordup/Theme+*.swift", "docs": ["docs/patterns/theme.md"]}
+  ]
+}

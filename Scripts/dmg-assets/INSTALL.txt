@@ -1,0 +1,30 @@
+record-up 설치 안내
+====================
+
+1) 설치
+   이 창에서 'recordup' 아이콘을 오른쪽 'Applications' 폴더로 드래그하세요.
+
+2) 첫 실행 시 보안 경고가 뜨면
+   Finder → 응용 프로그램(Applications)에서 'recordup' 우클릭 → '열기'
+   "확인되지 않은 개발자" 경고 창에서 '열기'를 한 번만 눌러주세요.
+   이후 실행에서는 경고가 다시 뜨지 않습니다.
+   (셀프 사인 빌드라 Apple 노타리제이션이 없어 첫 실행에만 우회가 필요합니다.)
+
+3) 사전 준비
+   - Claude Code CLI('claude') 설치 + Claude Max로 로그인.
+     회의록 요약은 본인의 Claude Max 구독을 그대로 사용합니다.
+     ('claude --version' 으로 확인.)
+
+4) 처음 사용
+   - 앱 실행 → 음성 메모(.m4a) 드래그&드롭 → 회의록 템플릿 선택.
+   - 첫 실행에서 모델이 동봉돼 있지 않다면
+     Whisper / SpeakerKit CoreML 모델(합쳐서 약 2~3GB)을 자동 다운로드합니다.
+   - 결과 저장 위치
+       ~/Documents/record-up/transcripts/   (전사본 .md)
+       ~/Documents/record-up/minutes/       (회의록 .md, 자동 열림)
+
+5) 무결성 확인 (선택)
+   배포 시 함께 제공된 record-up-<버전>.dmg.sha256 파일과 비교하세요:
+     shasum -a 256 record-up-<버전>.dmg
+
+문제 발생 시 README.md 또는 GitHub Issues 를 참고하세요.
